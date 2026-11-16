@@ -5,22 +5,23 @@ const caseSchema = z.object({
   id: nonempty, title: nonempty, route: nonempty, intro: nonempty,
   rows: z.array(z.object({ label: nonempty, value: nonempty })).min(1)
 })
+const questionBase = z.object({ id: nonempty, category: nonempty, sectionId: nonempty, prompt: nonempty, explanation: nonempty, caseId: nonempty.optional() })
+const choiceQuestion = questionBase.extend({ choices: z.array(nonempty).min(2).max(4), correctIndex: z.number().int().min(0).max(3) })
+const numericQuestion = questionBase.extend({ format: z.literal('numeric'), solution: z.number(), unit: nonempty })
+
 export const courseSchema = z.object({
   schemaVersion: z.literal(1), id: nonempty, day: z.number().int().min(1).max(14),
-  title: nonempty, subtitle: nonempty, minutes: z.number().int().positive(),
+  title: nonempty, subtitle: nonempty, group: nonempty.optional(), minutes: z.number().int().positive(),
   objectives: z.array(nonempty).min(1),
   sources: z.array(z.object({ title: nonempty, url: z.url({ protocol: /^https$/ }) })).min(1).optional(),
   cases: z.array(caseSchema).optional(),
   sections: z.array(z.object({
     id: nonempty, title: nonempty, paragraphs: z.array(nonempty).min(1),
     keyPoint: nonempty,
+    exercise: z.object({ title: nonempty, prompt: nonempty, sample: nonempty, checklist: z.array(nonempty).min(1) }).optional(),
     diagram: z.object({ kind: z.enum(['nested', 'flow']).optional(), title: nonempty, items: z.array(z.object({ label: nonempty, detail: nonempty })).min(2) }).optional()
   })).min(1),
-  questions: z.array(z.object({
-    id: nonempty, category: nonempty, sectionId: nonempty, prompt: nonempty,
-    choices: z.array(nonempty).min(2).max(3),
-    correctIndex: z.number().int().min(0).max(2), explanation: nonempty, caseId: nonempty.optional()
-  })).min(1)
+  questions: z.array(z.union([choiceQuestion, numericQuestion])).min(1)
 }).superRefine((course, ctx) => {
   const ids = course.sections.map(s => s.id)
   if (new Set(ids).size !== ids.length) ctx.addIssue({ code: 'custom', message: '章IDが重複しています' })
@@ -31,8 +32,10 @@ export const courseSchema = z.object({
   course.questions.forEach((q, index) => {
     if (!ids.includes(q.sectionId)) ctx.addIssue({ code: 'custom', path: ['questions', index, 'sectionId'], message: '対応する章がありません' })
     if (q.caseId && !cases.has(q.caseId)) ctx.addIssue({ code: 'custom', path: ['questions', index, 'caseId'], message: '対応する実技資料がありません' })
-    if (q.correctIndex >= q.choices.length) ctx.addIssue({ code: 'custom', path: ['questions', index, 'correctIndex'], message: '正解の選択肢がありません' })
-    if (new Set(q.choices).size !== q.choices.length) ctx.addIssue({ code: 'custom', path: ['questions', index, 'choices'], message: '選択肢は重複できません' })
+    if ('choices' in q) {
+      if (q.correctIndex >= q.choices.length) ctx.addIssue({ code: 'custom', path: ['questions', index, 'correctIndex'], message: '正解の選択肢がありません' })
+      if (new Set(q.choices).size !== q.choices.length) ctx.addIssue({ code: 'custom', path: ['questions', index, 'choices'], message: '選択肢は重複できません' })
+    }
   })
 })
 export type Course = z.infer<typeof courseSchema>

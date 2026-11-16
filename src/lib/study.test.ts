@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import raw from '../data/day01.json'
 import { courseSchema } from './content'
-import { accuracy, advanceQuiz, checkAnswer, createDraft, groupAccuracy, initialState, isDayComplete, localDate, streak, wrongQuestions, type StudyState } from './study'
+import { accuracy, advanceQuiz, checkAnswer, createDraft, groupAccuracy, initialState, isDayComplete, localDate, parseNumericAnswer, streak, wrongQuestions, type StudyState } from './study'
 
 const course = courseSchema.parse(raw)
-const q = course.questions[0]
+const q = raw.questions[0]
 const fresh = (): StudyState => structuredClone(initialState)
 describe('採点と復習', () => {
   it('未選択の回答と、重複した回答の確定を防ぐ', () => {
@@ -43,7 +43,7 @@ describe('採点と復習', () => {
     expect(next.draft?.answers).toHaveLength(1)
   })
   it('全章読了と80%以上のテストが両方必要で、復習結果は達成に使わない', () => {
-    const answers = course.questions.map(q => ({ questionId: q.id, selected: q.correctIndex, correct: true, answeredAt: new Date().toISOString(), category: q.category }))
+    const answers = raw.questions.map(q => ({ questionId: q.id, selected: q.correctIndex, correct: true, answeredAt: new Date().toISOString(), category: q.category }))
     const attempt = { id: 'a', mode: 'test' as const, day: 1, answers, startedAt: '', completedAt: '' }
     const state = { ...fresh(), attempts: [attempt] }
     expect(isDayComplete(course, state)).toBe(false)
@@ -51,6 +51,19 @@ describe('採点と復習', () => {
     expect(isDayComplete(course, state)).toBe(true)
     expect(isDayComplete(course, { ...state, attempts: [{ ...attempt, mode: 'review' }] })).toBe(false)
     expect(isDayComplete(course, { ...state, attempts: [{ ...attempt, answers: answers.map(a => ({ ...a, correct: false })) }] })).toBe(false)
+  })
+  it('数値回答を正規化して採点し、次の問題で入力を取り除く', () => {
+    const question = { id: 'numeric', category: '不動産', sectionId: 's1', prompt: '金額', format: 'numeric' as const, solution: -1234.5, unit: '万円', explanation: '解説' }
+    const draft = createDraft('test', 1, [question, q])
+    draft.input = '12,34'
+    const state = { ...fresh(), draft }
+    expect(checkAnswer(state, question)).toBe(state)
+    draft.input = ' −１，２３４．５ '
+    const answered = checkAnswer(state, question)
+    expect(answered.latestAnswers[question.id]).toMatchObject({ correct: true, selected: -1234.5 })
+    expect(advanceQuiz(answered).draft?.input).toBeUndefined()
+    expect(parseNumericAnswer('0')).toBe(0)
+    expect(parseNumericAnswer('1e3')).toBeNull()
   })
 })
 describe('日付と集計', () => {

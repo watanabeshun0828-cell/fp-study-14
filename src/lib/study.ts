@@ -3,7 +3,7 @@ import type { Course, Question } from './content'
 export type Page = 'home' | 'lessons' | 'quiz' | 'review' | 'stats'
 export type Theme = 'system' | 'light' | 'dark'
 export interface Answer { questionId: string; selected: number; correct: boolean; answeredAt: string; category: string }
-export interface QuizDraft { id: string; mode: 'test' | 'review'; day: number; questionIds: string[]; index: number; selected: number | null; answers: Answer[]; startedAt: string }
+export interface QuizDraft { id: string; mode: 'test' | 'review'; day: number; questionIds: string[]; index: number; selected: number | null; input?: string; answers: Answer[]; startedAt: string }
 export interface Attempt { id: string; mode: 'test' | 'review'; day: number; answers: Answer[]; startedAt: string; completedAt: string }
 export interface StudyState {
   version: 1; theme: Theme; selectedDay: number;
@@ -39,16 +39,31 @@ export function streak(dates: string[], now = new Date()): number {
 export function createDraft(mode: QuizDraft['mode'], day: number, questions: Question[]): QuizDraft {
   return { id: crypto.randomUUID(), mode, day, questionIds: questions.map(q => q.id), index: 0, selected: null, answers: [], startedAt: new Date().toISOString() }
 }
+export function parseNumericAnswer(input = ''): number | null {
+  const number = input.normalize('NFKC').trim().replace(/−/g, '-')
+  if (!/^[+-]?(?:(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d+)?|\.\d+)$/.test(number)) return null
+  const value = Number(number.replace(/,/g, ''))
+  return Number.isFinite(value) ? value : null
+}
+
+export function answerLabel(question: Question, value: number): string {
+  if ('choices' in question) return question.choices[value] ?? '—'
+  return `${value.toLocaleString('ja-JP', { maximumFractionDigits: 12 })} ${question.unit}`
+}
+
 export function checkAnswer(state: StudyState, question: Question, now = new Date().toISOString()): StudyState {
   const draft = state.draft
-  if (!draft || draft.selected === null || !Number.isInteger(draft.selected) || draft.selected < 0 || draft.selected >= question.choices.length || draft.questionIds[draft.index] !== question.id || draft.answers.some(a => a.questionId === question.id)) return state
-  const answer: Answer = { questionId: question.id, selected: draft.selected, correct: draft.selected === question.correctIndex, answeredAt: now, category: question.category }
+  if (!draft || draft.questionIds[draft.index] !== question.id || draft.answers.some(a => a.questionId === question.id)) return state
+  const isChoice = 'choices' in question
+  const selected = isChoice ? draft.selected : parseNumericAnswer(draft.input)
+  if (selected === null || (isChoice && (!Number.isInteger(selected) || selected < 0 || selected >= question.choices.length))) return state
+  const answer: Answer = { questionId: question.id, selected, correct: selected === (isChoice ? question.correctIndex : question.solution), answeredAt: now, category: question.category }
   return { ...state, draft: { ...draft, answers: [...draft.answers, answer] }, latestAnswers: { ...state.latestAnswers, [question.id]: answer }, activityDates: addActivity(state, now), lastStudy: 'quiz' }
 }
 export function advanceQuiz(state: StudyState, now = new Date().toISOString()): StudyState {
   const draft = state.draft
   if (!draft || !draft.answers.some(a => a.questionId === draft.questionIds[draft.index])) return state
-  if (draft.index < draft.questionIds.length - 1) return { ...state, draft: { ...draft, index: draft.index + 1, selected: null } }
+  if (draft.index < draft.questionIds.length - 1) return { ...state, draft: { ...draft, index: draft.index + 1, selected: null, input: undefined } }
   const attempt: Attempt = { id: draft.id, mode: draft.mode, day: draft.day, answers: draft.answers, startedAt: draft.startedAt, completedAt: now }
   return { ...state, draft: null, attempts: state.attempts.some(a => a.id === attempt.id) ? state.attempts : [...state.attempts, attempt], lastAttemptId: attempt.id, activityDates: addActivity(state, now) }
 }

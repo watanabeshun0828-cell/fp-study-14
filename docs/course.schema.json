@@ -23,6 +23,10 @@
       "type": "string",
       "minLength": 1
     },
+    "group": {
+      "type": "string",
+      "minLength": 1
+    },
     "minutes": {
       "type": "integer",
       "exclusiveMinimum": 0,
@@ -138,6 +142,38 @@
             "type": "string",
             "minLength": 1
           },
+          "exercise": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string",
+                "minLength": 1
+              },
+              "prompt": {
+                "type": "string",
+                "minLength": 1
+              },
+              "sample": {
+                "type": "string",
+                "minLength": 1
+              },
+              "checklist": {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            "required": [
+              "title",
+              "prompt",
+              "sample",
+              "checklist"
+            ],
+            "additionalProperties": false
+          },
           "diagram": {
             "type": "object",
             "properties": {
@@ -195,57 +231,112 @@
       "minItems": 1,
       "type": "array",
       "items": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "minLength": 1
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "category": {
+                "type": "string",
+                "minLength": 1
+              },
+              "sectionId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "prompt": {
+                "type": "string",
+                "minLength": 1
+              },
+              "explanation": {
+                "type": "string",
+                "minLength": 1
+              },
+              "caseId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "choices": {
+                "minItems": 2,
+                "maxItems": 4,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "correctIndex": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 3
+              }
+            },
+            "required": [
+              "id",
+              "category",
+              "sectionId",
+              "prompt",
+              "explanation",
+              "choices",
+              "correctIndex"
+            ],
+            "additionalProperties": false
           },
-          "category": {
-            "type": "string",
-            "minLength": 1
-          },
-          "sectionId": {
-            "type": "string",
-            "minLength": 1
-          },
-          "prompt": {
-            "type": "string",
-            "minLength": 1
-          },
-          "choices": {
-            "minItems": 2,
-            "maxItems": 3,
-            "type": "array",
-            "items": {
-              "type": "string",
-              "minLength": 1
-            }
-          },
-          "correctIndex": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 2
-          },
-          "explanation": {
-            "type": "string",
-            "minLength": 1
-          },
-          "caseId": {
-            "type": "string",
-            "minLength": 1
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "category": {
+                "type": "string",
+                "minLength": 1
+              },
+              "sectionId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "prompt": {
+                "type": "string",
+                "minLength": 1
+              },
+              "explanation": {
+                "type": "string",
+                "minLength": 1
+              },
+              "caseId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "format": {
+                "type": "string",
+                "const": "numeric"
+              },
+              "solution": {
+                "type": "number"
+              },
+              "unit": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "id",
+              "category",
+              "sectionId",
+              "prompt",
+              "explanation",
+              "format",
+              "solution",
+              "unit"
+            ],
+            "additionalProperties": false
           }
-        },
-        "required": [
-          "id",
-          "category",
-          "sectionId",
-          "prompt",
-          "choices",
-          "correctIndex",
-          "explanation"
-        ],
-        "additionalProperties": false
+        ]
       }
     }
   },
